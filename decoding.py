@@ -122,8 +122,8 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
         frameSize = width * height
         prevFrame = None
         frameCount = 0
-        # cancerous = {}
-        # cancerous[height // 2] = [width // 2]
+        cancerous = {}
+        cancerous[height // 2] = [width // 2]
         while i < len(dna):
             # first frame
             if prevFrame is None:
@@ -218,32 +218,32 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
                         i += 12
             if len(frame) == frameSize:
                 # write to video
-                # if mutation == 'cancer':
-                #     spread = []
-                #     for row in cancerous.keys():
-                #         for pixel in row:
-                #             frame[(row * width) + pixel] = [0, 0, 0]
-                #             if random.random() < 0.1:
-                #                 if pixel > 0 and pixel - 1 not in row:
-                #                     spread.append([row, pixel - 1])
-                #                     frame[(row * width) + pixel - 1] = [0, 0, 0]
-                #             if random.random() < 0.1:
-                #                 if pixel + 1 < width and pixel + 1 not in row:
-                #                     spread.append([row, pixel + 1])
-                #                     frame[(row * width) + pixel + 1] = [0, 0, 0]
-                #             if random.random() < 0.1:
-                #                 if row > 0 and (row - 1 not in cancerous.keys() or pixel not in cancerous[row - 1]):
-                #                     spread.append([row - 1, pixel])
-                #                     frame[((row - 1) * width) + pixel] = [0, 0, 0]
-                #             if random.random() < 0.1:
-                #                 if row + 1 < height and (row + 1 not in cancerous.keys() or pixel not in cancerous[row + 1]):
-                #                     spread.append([row + 1, pixel])
-                #                     frame[((row + 1) * width) + pixel] = [0, 0, 0]
-                #     for pixel in spread:
-                #         if pixel[0] in cancerous.keys():
-                #             cancerous[pixel[0]].append(pixel[1])
-                #         else:
-                #             cancerous[pixel[0]] = [pixel[1]]
+                if mutation == 'cancer':
+                    spread = []
+                    for row in cancerous.keys():
+                        for pixel in cancerous[row]:
+                            frame[(row * width) + pixel] = [0, 0, 0]
+                            if random.random() < 0.1:
+                                if pixel > 0 and (pixel - 1) not in cancerous[row]:
+                                    spread.append([row, pixel - 1])
+                                    frame[(row * width) + pixel - 1] = [0, 0, 0]
+                            if random.random() < 0.1:
+                                if pixel + 1 < width and (pixel + 1) not in cancerous[row]:
+                                    spread.append([row, pixel + 1])
+                                    frame[(row * width) + pixel + 1] = [0, 0, 0]
+                            if random.random() < 0.1:
+                                if row > 0 and ((row - 1) not in cancerous.keys() or pixel not in cancerous[row - 1]):
+                                    spread.append([row - 1, pixel])
+                                    frame[((row - 1) * width) + pixel] = [0, 0, 0]
+                            if random.random() < 0.1:
+                                if row + 1 < height and ((row + 1) not in cancerous.keys() or pixel not in cancerous[row + 1]):
+                                    spread.append([row + 1, pixel])
+                                    frame[((row + 1) * width) + pixel] = [0, 0, 0]
+                    for pixel in spread:
+                        if pixel[0] in cancerous.keys():
+                            cancerous[pixel[0]].append(pixel[1])
+                        else:
+                            cancerous[pixel[0]] = [pixel[1]]
                 reshapedFrame = np.array(frame).reshape(height, width, 3)
                 vid.write(reshapedFrame.astype(np.uint8))
                 prevFrame = frame
@@ -276,10 +276,12 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
 # decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_sickle", "sickle")
 # decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_sickle1", "sickle1")
 # decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_sickle2", "sickle2")
-decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_rip", "rip")
+# decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_rip", "rip")
+decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_cancer", "cancer")
 
 # decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_recessive", "recessive")
 # decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_sickle", "sickle")
 # decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_sickle1", "sickle1")
 # decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_sickle2", "sickle2")
-decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_rip", "rip")
+# decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_rip", "rip")
+decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_cancer", "cancer")
