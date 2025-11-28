@@ -195,8 +195,9 @@ def vidToDna(videoPath, posterization='none'):
 # vidToDna("original-videos/bad_apple.mp4", 'high')
 # vidToDna("original-videos/bad_apple.mp4", 'med')
 # vidToDna("original-videos/bad_apple.mp4", 'low')
-# vidToDna("original-videos/bad_apple.mp4")
-vidToDna("original-videos/food.mp4", 'high')
-vidToDna("original-videos/food.mp4", 'med')
-vidToDna("original-videos/food.mp4", 'low')
+vidToDna("original-videos/bad_apple.mp4")
+
+# vidToDna("original-videos/food.mp4", 'high')
+# vidToDna("original-videos/food.mp4", 'med')
+# vidToDna("original-videos/food.mp4", 'low')
 vidToDna("original-videos/food.mp4")

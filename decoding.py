@@ -5,7 +5,6 @@
 #           Sickle - GAG --> GTG, CTC --> CAC https://pmc.ncbi.nlm.nih.gov/articles/PMC7510211/
 #           Cancer - 10% chance for pixels next to starting empty pixel to become empty as well
 #           RIP - C --> T when a pixel is the same as the previous one https://pmc.ncbi.nlm.nih.gov/articles/PMC1451165/
-#           ...
 #       Get fps and frame size (m, n)
 #       for every m * n pixels:
 #           initialize image with frame size
@@ -17,6 +16,7 @@
 
 import cv2
 import numpy as np
+import random
 
 decodingDict = {
     'A': 0,
@@ -32,6 +32,24 @@ def fromBases(sequence):
     for i in range(0, len(sequence)):
         num += decodingDict[sequence[i]] * (4 ** (len(sequence) - i - 1))
     return num
+
+# from encoding.py, used for RIP mutation
+encodingDict = {
+    0: 'A',
+    1: 'T',
+    2: 'C',
+    3: 'G'
+}
+def toBases(num, pad):
+    baseFour = np.base_repr(num, base=4)
+    encodedNum = ""
+    i = 0
+    while i < pad - len(baseFour):
+        encodedNum += 'A'
+        i += 1
+    for n in baseFour:
+        encodedNum += encodingDict[int(n)]
+    return encodedNum
 
 
 def highDecoding(sequence):
@@ -104,6 +122,8 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
         frameSize = width * height
         prevFrame = None
         frameCount = 0
+        # cancerous = {}
+        # cancerous[height // 2] = [width // 2]
         while i < len(dna):
             # first frame
             if prevFrame is None:
@@ -130,13 +150,57 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
                     # next two bases give run length
                     runLength = fromBases(dna[i:i+2])
                     i += 2
+                    # sickle: GAG --> GTG (AG = 3, TG = 7)
+                    if (mutation == "sickle" or mutation == 'sickle1') and runLength == 3:
+                        runLength = 7
+                        if len(frame) + 7 > frameSize:
+                            runLength = frameSize - len(frame)
                     for run in range(0, runLength):
-                        pixelIndex = len(frame)
-                        frame.append(prevFrame[pixelIndex])
+                        if len(frame) < frameSize: # need this check for sickle mutation
+                            pixelIndex = len(frame)
+                            if mutation == 'rip':
+                                dupe = prevFrame[pixelIndex]
+                                newPixel = []
+                                for color in dupe:
+                                    baseColor = toBases(color, 4)
+                                    baseColor = baseColor.replace('C', 'T')
+                                    newColor = fromBases(baseColor)
+                                    newPixel.append(newColor)
+                                frame.append(newPixel)
+                            else:
+                                frame.append(prevFrame[pixelIndex])
                 # change from prev frame
                 else:
                     i += 1 # 'C'
-                    if posterization == 'high':
+                    if (mutation == 'sickle' or mutation == 'sickle2') and dna[i] == 'T':
+                        if i + 1 < len(dna) and dna[i + 1] == 'C':
+                            if posterization == 'high':
+                                for pixel in highDecoding('A'):
+                                    frame.append(pixel)
+                                i += 1
+                            elif posterization == 'med':
+                                for pixel in medDecoding('A' + dna[i+1:i+6]):
+                                    frame.append(pixel)
+                                i += 6
+                            elif posterization == 'low':
+                                for pixel in lowDecoding('A' + dna[i+1:i+9]):
+                                    frame.append(pixel)
+                                i += 9
+                            else:
+                                for pixel in noneDecoding('A' + dna[i+1:i+12]):
+                                    frame.append(pixel)
+                                i += 12
+                    elif mutation == 'recessive' and (random.random() < 0.25):
+                        frame.append(prevFrame[len(frame)])
+                        if posterization == 'high':
+                            i += 1
+                        elif posterization == 'med':
+                            i += 6
+                        elif posterization == 'low':
+                            i += 9
+                        else:
+                            i += 12
+                    elif posterization == 'high':
                         for pixel in highDecoding(dna[i]):
                             frame.append(pixel)
                         i += 1
@@ -154,6 +218,32 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
                         i += 12
             if len(frame) == frameSize:
                 # write to video
+                # if mutation == 'cancer':
+                #     spread = []
+                #     for row in cancerous.keys():
+                #         for pixel in row:
+                #             frame[(row * width) + pixel] = [0, 0, 0]
+                #             if random.random() < 0.1:
+                #                 if pixel > 0 and pixel - 1 not in row:
+                #                     spread.append([row, pixel - 1])
+                #                     frame[(row * width) + pixel - 1] = [0, 0, 0]
+                #             if random.random() < 0.1:
+                #                 if pixel + 1 < width and pixel + 1 not in row:
+                #                     spread.append([row, pixel + 1])
+                #                     frame[(row * width) + pixel + 1] = [0, 0, 0]
+                #             if random.random() < 0.1:
+                #                 if row > 0 and (row - 1 not in cancerous.keys() or pixel not in cancerous[row - 1]):
+                #                     spread.append([row - 1, pixel])
+                #                     frame[((row - 1) * width) + pixel] = [0, 0, 0]
+                #             if random.random() < 0.1:
+                #                 if row + 1 < height and (row + 1 not in cancerous.keys() or pixel not in cancerous[row + 1]):
+                #                     spread.append([row + 1, pixel])
+                #                     frame[((row + 1) * width) + pixel] = [0, 0, 0]
+                #     for pixel in spread:
+                #         if pixel[0] in cancerous.keys():
+                #             cancerous[pixel[0]].append(pixel[1])
+                #         else:
+                #             cancerous[pixel[0]] = [pixel[1]]
                 reshapedFrame = np.array(frame).reshape(height, width, 3)
                 vid.write(reshapedFrame.astype(np.uint8))
                 prevFrame = frame
@@ -161,6 +251,12 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
                 frameCount += 1
                 if frameCount % 10 == 0:
                     print(f"Wrote frame {frameCount}")
+        # need check after adding mutations
+        if len(frame) != 0:
+            while len(frame) < frameSize:
+                frame.append([0, 0, 0])
+            reshapedFrame = np.array(frame).reshape(height, width, 3)
+            vid.write(reshapedFrame.astype(np.uint8))
         vid.release()
         print(f"All frames completed! Video at {out_filename}")
     return out_filename
@@ -170,7 +266,20 @@ def decodeDNA(encodedFile, outputPath, mutation='none'):
 # decodeDNA("dna-encodings/bad_apple.mp4_med_encoding.txt", "decoded-videos/bad_apple_med_none", "none")
 # decodeDNA("dna-encodings/bad_apple.mp4_low_encoding.txt", "decoded-videos/bad_apple_low_none", "none")
 # decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_none", "none")
-decodeDNA("dna-encodings/food.mp4_high_encoding.txt", "decoded-videos/food_high_none", "none")
-decodeDNA("dna-encodings/food.mp4_med_encoding.txt", "decoded-videos/food_med_none", "none")
-decodeDNA("dna-encodings/food.mp4_low_encoding.txt", "decoded-videos/food_low_none", "none")
-decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_none", "none")
+
+# decodeDNA("dna-encodings/food.mp4_high_encoding.txt", "decoded-videos/food_high_none", "none")
+# decodeDNA("dna-encodings/food.mp4_med_encoding.txt", "decoded-videos/food_med_none", "none")
+# decodeDNA("dna-encodings/food.mp4_low_encoding.txt", "decoded-videos/food_low_none", "none")
+# decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_none", "none")
+
+# decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_recessive", "recessive")
+# decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_sickle", "sickle")
+# decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_sickle1", "sickle1")
+# decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_sickle2", "sickle2")
+decodeDNA("dna-encodings/bad_apple.mp4_none_encoding.txt", "decoded-videos/bad_apple_none_rip", "rip")
+
+# decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_recessive", "recessive")
+# decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_sickle", "sickle")
+# decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_sickle1", "sickle1")
+# decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_sickle2", "sickle2")
+decodeDNA("dna-encodings/food.mp4_none_encoding.txt", "decoded-videos/food_none_rip", "rip")
